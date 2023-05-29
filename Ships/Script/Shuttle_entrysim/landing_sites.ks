@@ -1,6 +1,12 @@
 //define landing runways here
 IF (DEFINED ldgsiteslex) {UNSET ldgsiteslex.}
 GLOBAL ldgsiteslex IS LEXICON(
+						"KSC-150",LEXICON(
+							"position",LATLNG(28.6414950053078,-80.7058283105593),
+							"elevation",7,
+							"length",4415.4,
+							"heading",330.02
+						),
 						"KSC",LEXICON(
 							"position",LATLNG(28.6149805,-80.6944507),
 							"elevation",7,
