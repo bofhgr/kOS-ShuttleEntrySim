@@ -3,7 +3,7 @@ IF (DEFINED ldgsiteslex) {UNSET ldgsiteslex.}
 GLOBAL ldgsiteslex IS LEXICON(
 						"KSC-150",LEXICON(
 							"position",LATLNG(28.6414950053078,-80.7058283105593),
-							"elevation",7,
+							"elevation",7.470589,
 							"length",4415.4,
 							"heading",330.02
 						),
