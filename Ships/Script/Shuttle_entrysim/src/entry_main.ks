@@ -83,7 +83,8 @@ GLOBAL loglex IS LEXICON(
 									"tgt_range",0,
 									"range_err",0,
 									"az_err",0,
-									"roll_ref",0
+									"roll_ref",0,
+									"l_d",0
 
 
 ).
@@ -99,9 +100,9 @@ GLOBAL reset_entry_flag Is FALSE.
 reset_pids().
 
 
-GLOBAL airbrake_control IS initialise_spdbrk().
+GLOBAL airbrake_control IS airbrake_control_factory().
 
-initialise_flap_control(flap_control).
+GLOBAL flap_control IS flap_control_factory().
 
 
 
@@ -152,10 +153,12 @@ SET loglex["range_err"] TO 0.
 SET loglex["az_err"] TO 0.
 SET loglex["roll_ref"] TO 0. 
 
+flap_control["null_deflection"]().
 
 approach_loop().
 
-null_flap_deflection().
+flap_control["deactivate"]().
+airbrake_control["deactivate"]().
 
 close_all_GUIs().
 SET SHIP:CONTROL:NEUTRALIZE TO TRUE.
@@ -185,7 +188,7 @@ GLOBAL guid_converged_flag IS FALSE.
 GLOBAL stop_entry_flag IS FALSE.
 
 //null feedback to help keep high pitch
-flaps_aoa_feedback(flap_control["parts"],0).
+flap_control["set_aoa_feedback"](0).
 
 //dap controller object
 LOCAL dap IS dap_controller_factory().
@@ -282,8 +285,8 @@ local control_loop is loop_executor_factory(
 	
 									//update the flaps trim setting and airbrakes IF WE'RE BELOW FIRST ROLL ALT
 									IF SHIP:ALTITUDE < constants["firstrollalt"] {	
-										SET flap_control TO flaptrim_control(flptrm:PRESSED, flap_control).
-										SET airbrake_control TO speed_control(arbkb:PRESSED, airbrake_control, mode).
+										flaptrim_control(flptrm:PRESSED, flap_control).
+										speed_control(arbkb:PRESSED, airbrake_control, mode).
 									}
 
 									print "roll_ref : " + ROUND(roll_ref,1) + "    " at (0,4).
@@ -306,7 +309,7 @@ local control_loop is loop_executor_factory(
 													pipper_deltas,
 													az_err,
 													tgt_range,
-													airbrake_control["spdbk_val"],
+													airbrake_control["deflection"],
 													flap_control["deflection"],
 													update_nz(
 														-SHIP:ORBIT:BODY:POSITION,
@@ -467,6 +470,7 @@ UNTIL FALSE {
 	
 	if is_log() {
 	
+		LOCAL outforce IS aeroforce_ld(simstate["position"], simstate["velocity"], LIST(pitchguid, rollguid)).
 		
 		//prepare list of values to log.
 		
@@ -483,6 +487,7 @@ UNTIL FALSE {
 		SET loglex["range_err"] TO range_err.
 		SET loglex["az_err"] TO az_err.
 		SET loglex["roll_ref"] TO roll_ref. 
+		SET loglex["l_d"] TO outforce["lift"] / outforce["drag"].
 			
 			
 
@@ -500,7 +505,7 @@ select_opposite_hac().
 define_hac(SHIP:GEOPOSITION,tgtrwy,vehicle_params).
 
 //positive aoa feedback to help keep stability
-flaps_aoa_feedback(flap_control["parts"],+25).
+flap_control["set_aoa_feedback"](25).
 
 //if we broke out manually before TAEM conditions go directly to approach 
 IF (NOT TAEM_flag) { 
@@ -743,7 +748,7 @@ LOCAL dap IS dap_controller_factory().
 LOCK STEERING TO P_att.
 
 //strong positive aoa feedback to help keep stability
-flaps_aoa_feedback(flap_control["parts"],+50).
+flap_control["set_aoa_feedback"](50).
 
 //reduce KP on the flaps PID so that auto flaps are nto so aggressive 
 SET FLAPPID:KP TO FLAPPID:KP/3.
@@ -796,12 +801,9 @@ UNTIL FALSE{
 		SET deltas TO mode6(simstate,tgtrwy,vehicle_params).
 	}
 	
-	SET airbrake_control TO speed_control(is_autoairbk(),airbrake_control,mode).
+	speed_control(is_autoairbk(),airbrake_control,mode).
 	
-	//read off the pilot input, assumes manual control
-	flap_control["pitch_control"]:update(SHIP:CONTROL:PILOTPITCH).
-	
-	SET flap_control TO flaptrim_control(flptrm:PRESSED, flap_control,0.2).
+	flaptrim_control(flptrm:PRESSED, flap_control).
 	
 	
 
@@ -810,7 +812,7 @@ UNTIL FALSE{
 		mode,
 		deltas,
 		mode_dist(simstate,tgtrwy,vehicle_params),
-		airbrake_control["spdbk_val"],
+		airbrake_control["deflection"],
 		flap_control["deflection"],
 		update_nz(
 						-SHIP:ORBIT:BODY:POSITION,

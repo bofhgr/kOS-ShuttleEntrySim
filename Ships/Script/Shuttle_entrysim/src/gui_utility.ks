@@ -352,13 +352,13 @@ FUNCTION make_global_entry_GUI {
 	GLOBAL flptrm IS  toggles_box:ADDCHECKBOX("Auto Flap Trim",false).
 	toggles_box:addspacing(30).	
 	
-	SET flptrm:ONTOGGLE TO {
-		parameter b. 
-		IF NOT b {
-			null_flap_deflection().
-		}
-
-	}.
+	//SET flptrm:ONTOGGLE TO {
+	//	parameter b. 
+	//	IF NOT b {
+	//		null_flap_deflection().
+	//	}
+	//
+	//}.
 	
 	GLOBAL arbkb IS  toggles_box:ADDCHECKBOX("Auto Airbrake",false).
 
@@ -988,7 +988,6 @@ function gainsgui {
 		set Khdot_box:onconfirm to { 
 			parameter val.
 			set val to val:tonumber(gains["Khdot"]).
-			if val < 0 set val to 0.
 			set gains["Khdot"] to val.
 		}.
 		set rollramp_box:onconfirm to { 

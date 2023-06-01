@@ -267,22 +267,26 @@ FUNCTION roll_profile {
 		RETURN ABS(constants["prebank_angle"]).
 	}
 	
+	//let the base roll value decrease linearly with velocity
+	//LOCAL newroll IS MIN(roll0,(roll0/gains["Roll_ramp"])*(state["surfvel"]:MAG + 2500 - 500)/(2500 - 250)).
+	
+	LOCAL newroll IS roll0 + gains["Roll_ramp"] * (state["surfvel"]:MAG - 4000).
+
+	
 	//modulate the base roll based on vertical speed 
 	//to try and dampen altitude oscillations
 	//not too much since it reduces range a lot
 	//this effect decays with velocity
-	LOCAL refvel IS 6500.
+	LOCAL refvel IS 6000.
 	LOCAL gain IS gains["Khdot"]*(state["surfvel"]:MAG/refvel)^3.
-	LOCAL newroll IS roll0 + gain*hddot.
+	SET newroll TO newroll + gain*hddot.
 	
-	//let the base roll value decrease linearly with velocity
-	SET newroll TO MIN(newroll,(roll0/gains["Roll_ramp"])*(state["surfvel"]:MAG + 2500 - 500)/(2500 - 250)).
-
+	
 	//heuristic minimum roll taken from the training manuals
 	//min value to still ensure proper lateral guidance even in low-energy situations
 	//only enable it if the reference roll is too small
 	//update: use it in every case
-	LOCAL roll_min IS 2*ABS(delaz).
+	LOCAL roll_min IS constants["delaz_roll_factor"]*ABS(delaz).
 	
 	RETURN clamp(newroll,roll_min,85).
 }
@@ -309,7 +313,7 @@ FUNCTION roll_reversal {
 	//to disable the roll reversals and fly at zero bank
 	//do this by clamping the delaz bandwidth using the roll ref value which is small or even zero in low energy cases
 	//divide by 2 because of the same heuristic used for the min bank angle, only the other way around
-	LOCAL red_bandwidth IS 0.9*MIN(bandwidth,roll_ref/2).
+	LOCAL red_bandwidth IS 0.9*MIN(bandwidth,roll_ref/constants["delaz_roll_factor"]).
 	
 	//the default output is simply set to the current roll sign
 	LOCAL out_s IS cur_sign.
@@ -392,7 +396,9 @@ declare function simulate_reentry {
 		
 		IF simsets["log"]= TRUE {
 		
-			LOCAL tgt_range IS greatcircledist( tgtpos , simstate["position"] ).
+			LOCAL tgt_range IS greatcircledist( tgtpos , simstate["latlong"] ).
+			
+			LOCAL outforce IS aeroforce_ld(simstate["position"], simstate["velocity"], LIST(pitch_prof,roll_prof)).
 			
 			
 			SET loglex["time"] TO simstate["simtime"].
@@ -405,6 +411,7 @@ declare function simulate_reentry {
 			SET loglex["pitch"] TO pitch_prof.
 			SET loglex["roll"] TO roll_prof.
 			SET loglex["az_err"] TO delaz.
+			SET loglex["l_d"] TO outforce["lift"] / outforce["drag"].
 			log_data(loglex).
 		}
 		
